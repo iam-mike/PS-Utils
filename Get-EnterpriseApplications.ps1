@@ -1,5 +1,5 @@
 #Install-Module AzureAD
-#Import-Module AzureAD
+Import-Module AzureAD -UseWindowsPowerShell
 
 Connect-AzureAD # connect
 
@@ -56,17 +56,21 @@ function Get-AzureADApplicationUsers {
 # Get existing azure ad applications and servce principals
 $Applications = Get-AzureADApplication -All:$true
 $ServicePrincipals = Get-AzureADServicePrincipal -All:$true | Where-Object { $_.Tags -eq 'WindowsAzureActiveDirectoryIntegratedApp' }
-
-foreach ($ServicePrincipal in $ServicePrincipals.ObjectId) {
-    Get-AzureADApplicationDelegatedPermissions -ServicePrincipalId $ServicePrincipal
-    Get-AzureADApplicationPermission -ServicePrincipalId $ServicePrincipal
-    Get-AzureADApplicationUsers -ServicePrincipalId $ServicePrincipal
+<#
+foreach ($ServicePrincipal in $ServicePrincipals[1].ObjectId) {
+    $DelegatedPermissions = Get-AzureADApplicationDelegatedPermissions -ServicePrincipalId $ServicePrincipal
+    $ApplicationPermissions = Get-AzureADApplicationPermission -ServicePrincipalId $ServicePrincipal
+    $ApplicationUsers = Get-AzureADApplicationUsers -ServicePrincipalId $ServicePrincipal
 }
-#Disconnect from old session and create new
-Disconnect-AzureAD
+#>
+    $DelegatedPermissions = Get-AzureADApplicationDelegatedPermissions -ServicePrincipalId $ServicePrincipals[1].ObjectId
+    $ApplicationPermissions = Get-AzureADApplicationPermission -ServicePrincipalId $ServicePrincipals[1].ObjectId
+    $ApplicationUsers = Get-AzureADApplicationUsers -ServicePrincipalId $ServicePrincipals[1].ObjectId
+
+Disconnect-AzureAD # Disconnect from old session and create new
 Connect-AzureAD # connect
-foreach ($application in $Applications) {
-    New-AzureAdApplication -Displayname $application.DisplayName -IdentifierUris $application.IdentifierUris -HomePage $application.HomePage -LogoutUrl $application.LogoutUrl 
+foreach ($application in $Applications[0]) {
+    New-AzureAdApplication -Displayname $application.DisplayName -IdentifierUris $application.IdentifierUris -HomePage $application.HomePage -LogoutUrl $application.LogoutUrl
     ## TODO: Add displayed owners
     # Add-AzureADApplicationOwner -OjbectID application.ObjectId -OwnerObjectId owner.ObjectId
     ## TODO: Add delegated permissions
