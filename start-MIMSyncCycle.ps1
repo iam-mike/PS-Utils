@@ -4,7 +4,7 @@
 # Version: 1.1
 # Date: 08/12/2019
 # Comment: Script to execute a Full or Delta sync cycle for
-#          MCS PAM solution.  
+#          PAM solution.  
 # Version: Added flag to clear run history
 #
 #########################################################
