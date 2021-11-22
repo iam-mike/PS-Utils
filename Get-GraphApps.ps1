@@ -28,22 +28,9 @@
 #############################################################################  
 #>
 
-install-module microsoft.Graph
-ipmo microsoft.Graph
+Install-Module microsoft.Graph
+Import-Module microsoft.Graph
 function Get-AuthToken {
-
-    <#
-.SYNOPSIS
-This function is used to authenticate with the Graph API REST interface
-.DESCRIPTION
-The function authenticate with the Graph API Interface with the tenant name
-.EXAMPLE
-Get-AuthToken
-Authenticates you with the Graph API interface
-.NOTES
-NAME: Get-AuthToken
-#>
-
     [cmdletbinding()]
 
     param
@@ -60,14 +47,14 @@ NAME: Get-AuthToken
 
     $AadModule = Get-Module -Name 'AzureAD' -ListAvailable
 
-    if ($AadModule -eq $null) {
+    if ($null -eq $AadModule) {
 
         Write-Host 'AzureAD PowerShell module not found, looking for AzureADPreview'
         $AadModule = Get-Module -Name 'AzureADPreview' -ListAvailable
 
     }
 
-    if ($AadModule -eq $null) {
+    if ($null -eq $AadModule) {
         Write-Host
         Write-Host 'AzureAD Powershell module not installed...' -f Red
         Write-Host "Install by running 'Install-Module AzureAD' or 'Install-Module AzureADPreview' from an elevated PowerShell prompt" -f Yellow

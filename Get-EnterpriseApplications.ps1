@@ -89,6 +89,8 @@ Connect-AzureAD # connect
 
 #region data collection
 
+#region applications
+
 # Get existing azure ad applications and servce principals
 $Applications = Get-AzureADApplication -All:$true
 $ServicePrincipals = Get-AzureADServicePrincipal -All:$true | Where-Object { $_.Tags -eq 'WindowsAzureActiveDirectoryIntegratedApp' }
@@ -98,20 +100,28 @@ $ApplicationUsers = Get-AzureADApplicationUsers -ServicePrincipalId $ServicePrin
 
 #endregion
 
-#region output
-$Applications | ConvertTo-Json -AsArray | % { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File "c:\temp\application-details.json" -Encoding utf8
-$Applications | Out-File "c:\temp\applications.csv"
-$ServicePrincipals | ConvertTo-Json -AsArray | % { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File "c:\temp\service-principals.json" -Encoding utf8
-$DelegatedPermissions | ConvertTo-Json -AsArray | % { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File "c:\temp\delegated-permissions.json" -Encoding utf8
-$ApplicationUsers | ConvertTo-CSV | Out-File "c:\temp\application-users.csv" -Encoding utf8
+#region CA Policies
+$AllPolicies = Get-AzureADMSConditionalAccessPolicy
 
-<# REMOVED TO PREVENT LOOPING
-foreach ($ServicePrincipal in $ServicePrincipals.ObjectId) {
-    $DelegatedPermissions = Get-AzureADApplicationDelegatedPermissions -ServicePrincipalId $ServicePrincipal
-    $ApplicationPermissions = Get-AzureADApplicationPermission -ServicePrincipalId $ServicePrincipal
-    $ApplicationUsers = Get-AzureADApplicationUsers -ServicePrincipalId $ServicePrincipal
+foreach ($Policy in $AllPolicies) {
+    Write-Output "Backing up $($Policy.DisplayName)"
+    $JSON = $Policy | ConvertTo-Json -Depth 10 | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } 
+    $JSON | Out-File "C:\temp\App-Migration\POLICY-$($Policy.DisplayName).json"
 }
-#>
+#endregion
+
+#endregion
+
+#endregion
+
+#region output
+$Applications | ConvertTo-Json -AsArray | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File 'C:\temp\App-Migration\application-details.json' -Encoding utf8
+$Applications | Out-File 'C:\temp\App-Migration\applications.csv'
+$ServicePrincipals | ConvertTo-Json -AsArray | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File 'C:\temp\App-Migration\service-principals.json' -Encoding utf8
+$DelegatedPermissions | ConvertTo-Json -AsArray | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File 'C:\temp\App-Migration\delegated-permissions.json' -Encoding utf8
+$ApplicationUsers | ConvertTo-Csv | Out-File 'C:\temp\App-Migration\application-users.csv' -Encoding utf8
+$ApplicationPermissions | ConvertTo-Json -AsArray | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File 'C:\temp\App-Migration\application-permissions.json' -Encoding utf8 
+
 #endregion
 
 #region cleanup
@@ -124,15 +134,23 @@ Disconnect-AzureAD # Disconnect from old session
 
 
 #region testing - move below section into new script when matured
+
+<# REMOVED TO PREVENT LOOPING - RETURN TO LINE 118-122 (Output region)
+foreach ($ServicePrincipal in $ServicePrincipals.ObjectId) {
+    $DelegatedPermissions = Get-AzureADApplicationDelegatedPermissions -ServicePrincipalId $ServicePrincipal
+    $ApplicationPermissions = Get-AzureADApplicationPermission -ServicePrincipalId $ServicePrincipal
+    $ApplicationUsers = Get-AzureADApplicationUsers -ServicePrincipalId $ServicePrincipal
+}
+#>
 Connect-AzureAD # connect
-    foreach ($application in $Applications[0]) {
-        New-AzureAdApplication -Displayname $application.DisplayName -IdentifierUris $application.IdentifierUris -HomePage $application.HomePage -LogoutUrl $application.LogoutUrl
-        ## TODO: Add displayed owners
-        # Add-AzureADApplicationOwner -OjbectID application.ObjectId -OwnerObjectId owner.ObjectId
-        ## TODO: Add delegated permissions
-        ## TODO: Add permissions
-        # TODO:
-    } 
+foreach ($application in $Applications[0]) {
+    New-AzureAdApplication -Displayname $application.DisplayName -IdentifierUris $application.IdentifierUris -HomePage $application.HomePage -LogoutUrl $application.LogoutUrl
+    ## TODO: Add displayed owners
+    # Add-AzureADApplicationOwner -OjbectID application.ObjectId -OwnerObjectId owner.ObjectId
+    ## TODO: Add delegated permissions
+    ## TODO: Add permissions
+    # TODO:
+} 
 Disconnect-AzureAD # Disconnect from old session
 #endregion
 
@@ -147,7 +165,7 @@ function Get-AppsAndData {
     $ThirdPartyApps = Get-AzureADServicePrincipal -All:$true | Where-Object { $_.Tags -eq 'WindowsAzureActiveDirectoryIntegratedApp' }
     $Apps = ($FirstPartyApps + $ThirdPartyApps) 
     Return $Apps
-    # $Apps | Format-List Select-Object DisplayName, AppID, PublicClient, AvailableToOtherTenants, HomePage, LogoutUrl  | Export-Csv "C:\temp\AzureADApps.csv"  -NoTypeInformation -Encoding UTF8
+    # $Apps | Format-List Select-Object DisplayName, AppID, PublicClient, AvailableToOtherTenants, HomePage, LogoutUrl  | Export-Csv "C:\temp\App-Migration\AzureADApps.csv"  -NoTypeInformation -Encoding UTF8
 }
 
 # joining apps

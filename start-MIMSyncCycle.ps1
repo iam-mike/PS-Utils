@@ -19,8 +19,8 @@ Param(
 
 #Variables
 $MAs = Get-WmiObject -Class "MIIS_ManagementAgent" -Namespace "root\MicrosoftIdentityIntegrationServer"
-$CorpADMA = $MAs | ?{$_.Name -eq "Corp AD MA"}
-$MIMMA = $MAs | ?{$_.Name -eq "MIM Service MA"}
+$CorpADMA = $MAs | Where-Object{$_.Name -eq "Corp AD MA"}
+$MIMMA = $MAs | Where-Object{$_.Name -eq "MIM Service MA"}
 $DefaultDuration = New-TimeSpan -Days 14
 
 if (!$DurationToRetain -or ($DurationToRetain -lt (New-TimeSpan -Days 0))) {
@@ -28,7 +28,7 @@ if (!$DurationToRetain -or ($DurationToRetain -lt (New-TimeSpan -Days 0))) {
 }
 
 #region Functions
-function Run-ManagementAgent {
+function Start-ManagementAgent {
     Param (
         $MA,
         [ValidateSet("DI","DS","E","FI","FS")]
@@ -59,22 +59,22 @@ function Clear-RunHistory {
 #region Main Script
 Switch ($Type) {
     Full {
-        Run-ManagementAgent -MA $MIMMA -Profile FI
-        Run-ManagementAgent -MA $CorpADMA -Profile FI
-        Run-ManagementAgent -MA $MIMMA -Profile FS
-        Run-ManagementAgent -MA $CorpADMA -Profile FS
-        Run-ManagementAgent -MA $MIMMA -Profile E
-        Run-ManagementAgent -MA $MIMMA -Profile DI
-        Run-ManagementAgent -MA $MIMMA -Profile DS
+        Start-ManagementAgent -MA $MIMMA -Profile FI
+        Start-ManagementAgent -MA $CorpADMA -Profile FI
+        Start-ManagementAgent -MA $MIMMA -Profile FS
+        Start-ManagementAgent -MA $CorpADMA -Profile FS
+        Start-ManagementAgent -MA $MIMMA -Profile E
+        Start-ManagementAgent -MA $MIMMA -Profile DI
+        Start-ManagementAgent -MA $MIMMA -Profile DS
     }
     Delta {
-        Run-ManagementAgent -MA $MIMMA -Profile DI
-        Run-ManagementAgent -MA $CorpADMA -Profile DI
-        Run-ManagementAgent -MA $MIMMA -Profile DS
-        Run-ManagementAgent -MA $CorpADMA -Profile DS
-        Run-ManagementAgent -MA $MIMMA -Profile E
-        Run-ManagementAgent -MA $MIMMA -Profile DI
-        Run-ManagementAgent -MA $MIMMA -Profile DS
+        Start-ManagementAgent -MA $MIMMA -Profile DI
+        Start-ManagementAgent -MA $CorpADMA -Profile DI
+        Start-ManagementAgent -MA $MIMMA -Profile DS
+        Start-ManagementAgent -MA $CorpADMA -Profile DS
+        Start-ManagementAgent -MA $MIMMA -Profile E
+        Start-ManagementAgent -MA $MIMMA -Profile DI
+        Start-ManagementAgent -MA $MIMMA -Profile DS
     }
 }
 
