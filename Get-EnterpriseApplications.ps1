@@ -19,14 +19,49 @@
 #                                                                           # 
 #   This posting is provided "AS IS" with no warranties, and confers        # 
 #   no rights. Use of included script samples are subject to the terms      # 
-#   specified at http://www.microsoft.com/info/cpyright.htm.                # 
+#   specified at http://www.microsoft.com/info/cppyright.htm.               # 
 #                                                                           #  
 #   Author: Mike Witts                                                      #  
-#   Version 0.1         Date Last Modified: 22 November 2021                #  
+#   Version 0.1         Date Last Modified: 30 November 2021                #  
 #                                                                           #  
 #############################################################################  
 #>
+# Parameter help description
+param ($OUTPUTDIR = "$(Get-Location)\$(Get-Date -Format yyyyMMdd)")
+Write-Host "output to be saved in $OUTPUTDIR"
 
+if (!(Test-Path $OUTPUTDIR)) {
+    Write-Host 'creating output directory' -ForegroundColor yellow
+    try {
+        mkdir $OUTPUTDIR 
+        mkdir $OUTPUTDIR\Policies
+    } 
+    catch { 
+        Write-Host 'error creating output directory. EXITING' -ForegroundColor red
+        Break Script
+    }
+}
+else {
+    $continue = Read-Host 'output directory already exists. are you sure you want to overwrite? (y/N)'
+    if ($continue -eq 'y') {
+        Write-Host 'overwriting output directory' -ForegroundColor yellow
+        try {
+            Remove-Item $OUTPUTDIR
+            mkdir $OUTPUTDIR\Policies
+        } 
+        catch { 
+            Write-Host 'error recreating output directory. EXITING' -ForegroundColor red 
+            Break Script
+        }
+    }
+    else {
+        Write-Host 'exiting' -ForegroundColor red 
+        #[Environment]::Exit(0)
+        Break Script
+    }
+    #Read-Host 'output directory already exists. OVERWRIT' -ForegroundColor red
+}
+    
 #region functions
 function Get-AzureADApplicationDelegatedPermissions {
     param (
@@ -82,7 +117,40 @@ function Get-AzureADApplicationUsers {
 
 #region Main
 #Install-Module AzureAD
-Import-Module AzureAD -UseWindowsPowerShell
+$edition = $PSVersionTable.PSEdition
+$OS = $Env:OS
+if ($edition -eq 'Desktop') {
+    Import-Module AzureAD
+    Write-Host 'using powershell desktop edition' -ForegroundColor green
+}
+elseif ($IsWindows) {
+    <#Try { 
+        write-host "TRY BLOCK"
+        Import-Module AzureAD -UseWindowsPowerShell -ErrorAction Continue 
+        Write-Host 'using windows powershell' -ForegroundColor Yellow
+    }
+    Catch { 
+        write-host "CATCH BLOCK"
+        Import-Module AzureADPreview 
+    }#>
+    if (Get-Module -ListAvailable -Name AzureAD) {
+        Import-Module AzureAD -UseWindowsPowerShell 
+    } elseif (Get-Module -ListAvailable -Name AzureADPreview)
+    {
+        Import-Module AzureADPreview -UseWindowsPowerShell
+    }
+    else {
+        Write-Host 'no Azure AD powershell module found.' -ForegroundColor red
+        Write-Host 'Resolve by installing module AzureAD. More information can be found at https://docs.microsoft.com/en-us/powershell/azure/active-directory/install-adv2' -ForegroundColor red
+        Write-Host 'EXITING' -ForegroundColor red
+        Break Script
+    }
+}   
+else {
+    Write-Host 'This script is only supported on Windows and Desktop Powershell. And may not work on other systems' -ForegroundColor red
+    Import-Module AzureADPreview
+    Write-Host 'using powershell preview' -ForegroundColor Red
+}
 Connect-AzureAD # connect
 
 #endregion
@@ -94,19 +162,21 @@ Connect-AzureAD # connect
 # Get existing azure ad applications and servce principals
 $Applications = Get-AzureADApplication -All:$true
 $ServicePrincipals = Get-AzureADServicePrincipal -All:$true | Where-Object { $_.Tags -eq 'WindowsAzureActiveDirectoryIntegratedApp' }
-$DelegatedPermissions = Get-AzureADApplicationDelegatedPermissions -ServicePrincipalId $ServicePrincipals[3].ObjectId
-$ApplicationPermissions = Get-AzureADApplicationPermission -ServicePrincipalId $ServicePrincipals[11].ObjectId
-$ApplicationUsers = Get-AzureADApplicationUsers -ServicePrincipalId $ServicePrincipals[2].ObjectId
-
+foreach ($ServicePrincipal in $ServicePrincipals.ObjectId) {
+    $DelegatedPermissions = Get-AzureADApplicationDelegatedPermissions -ServicePrincipalId $ServicePrincipal
+    $ApplicationPermissions = Get-AzureADApplicationPermission -ServicePrincipalId $ServicePrincipal
+    $ApplicationUsers = Get-AzureADApplicationUsers -ServicePrincipalId $ServicePrincipal
+}
 #endregion
 
 #region CA Policies
 $AllPolicies = Get-AzureADMSConditionalAccessPolicy
 
 foreach ($Policy in $AllPolicies) {
+    $policyLocation = "$OUTPUTDIR\Policies\POLICY-$($Policy.DisplayName).json"
     Write-Output "Backing up $($Policy.DisplayName)"
     $JSON = $Policy | ConvertTo-Json -Depth 10 | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } 
-    $JSON | Out-File "C:\temp\App-Migration\POLICY-$($Policy.DisplayName).json"
+    $JSON | Out-File $policyLocation
 }
 #endregion
 
@@ -115,12 +185,23 @@ foreach ($Policy in $AllPolicies) {
 #endregion
 
 #region output
-$Applications | ConvertTo-Json -AsArray | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File 'C:\temp\App-Migration\application-details.json' -Encoding utf8
-$Applications | Out-File 'C:\temp\App-Migration\applications.csv'
-$ServicePrincipals | ConvertTo-Json -AsArray | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File 'C:\temp\App-Migration\service-principals.json' -Encoding utf8
-$DelegatedPermissions | ConvertTo-Json -AsArray | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File 'C:\temp\App-Migration\delegated-permissions.json' -Encoding utf8
-$ApplicationUsers | ConvertTo-Csv | Out-File 'C:\temp\App-Migration\application-users.csv' -Encoding utf8
-$ApplicationPermissions | ConvertTo-Json -AsArray | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File 'C:\temp\App-Migration\application-permissions.json' -Encoding utf8 
+
+$DelegatedPermissions = @()
+$ApplicationPermissions = @()
+$ApplicationUsers = @()
+foreach ($ServicePrincipal in $ServicePrincipals.ObjectId) {
+    $DelegatedPermissions = Get-AzureADApplicationDelegatedPermissions -ServicePrincipalId $ServicePrincipal
+    $ApplicationPermissions = Get-AzureADApplicationPermission -ServicePrincipalId $ServicePrincipal
+    $ApplicationUsers = Get-AzureADApplicationUsers -ServicePrincipalId $ServicePrincipal
+}
+
+
+$Applications | ConvertTo-Json | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File "$OUTPUTDIR\application-details.json" -Encoding utf8
+$Applications | Out-File "$OUTPUTDIR\applications.csv"
+$ServicePrincipals | ConvertTo-Json | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File "$OUTPUTDIR\service-principals.json" -Encoding utf8
+$DelegatedPermissions | ConvertTo-Json | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File "$OUTPUTDIR\delegated-permissions.json" -Encoding utf8
+$ApplicationUsers | ConvertTo-Csv | Out-File "$OUTPUTDIR\application-users.csv" -Encoding utf8
+$ApplicationPermissions | ConvertTo-Json | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File "$OUTPUTDIR\application-permissions.json" -Encoding utf8 
 
 #endregion
 
@@ -128,54 +209,5 @@ $ApplicationPermissions | ConvertTo-Json -AsArray | ForEach-Object { [System.Tex
 
 Disconnect-AzureAD # Disconnect from old session
 # Remove-Variable Applications, ServicePrincipals, DelegatedPermissions, ApplicationPermissions, ApplicationUsers
-
-#endregion
-
-
-
-#region testing - move below section into new script when matured
-
-<# REMOVED TO PREVENT LOOPING - RETURN TO LINE 118-122 (Output region)
-foreach ($ServicePrincipal in $ServicePrincipals.ObjectId) {
-    $DelegatedPermissions = Get-AzureADApplicationDelegatedPermissions -ServicePrincipalId $ServicePrincipal
-    $ApplicationPermissions = Get-AzureADApplicationPermission -ServicePrincipalId $ServicePrincipal
-    $ApplicationUsers = Get-AzureADApplicationUsers -ServicePrincipalId $ServicePrincipal
-}
-#>
-Connect-AzureAD # connect
-foreach ($application in $Applications[0]) {
-    New-AzureAdApplication -Displayname $application.DisplayName -IdentifierUris $application.IdentifierUris -HomePage $application.HomePage -LogoutUrl $application.LogoutUrl
-    ## TODO: Add displayed owners
-    # Add-AzureADApplicationOwner -OjbectID application.ObjectId -OwnerObjectId owner.ObjectId
-    ## TODO: Add delegated permissions
-    ## TODO: Add permissions
-    # TODO:
-} 
-Disconnect-AzureAD # Disconnect from old session
-#endregion
-
-
-
-#region testing
-
-# Get existing azure ad applications and servce principals
-
-function Get-AppsAndData {
-    $FirstPartyApps = Get-AzureADApplication -All:$true | Where-Object { $_.Tags -ne 'WindowsAzureActiveDirectoryIntegratedApp' }
-    $ThirdPartyApps = Get-AzureADServicePrincipal -All:$true | Where-Object { $_.Tags -eq 'WindowsAzureActiveDirectoryIntegratedApp' }
-    $Apps = ($FirstPartyApps + $ThirdPartyApps) 
-    Return $Apps
-    # $Apps | Format-List Select-Object DisplayName, AppID, PublicClient, AvailableToOtherTenants, HomePage, LogoutUrl  | Export-Csv "C:\temp\App-Migration\AzureADApps.csv"  -NoTypeInformation -Encoding UTF8
-}
-
-# joining apps
-Foreach ($3PApp in $ThirdPartyApps) {
-    Write-Host $3PApp.AppID
-    foreach ($1PApp in $FirstPartyApps) {
-        if ($1PApp.AppId -ne $3PApp.AppId) {
-            Write-Host $
-        }
-    }
-}
 
 #endregion
