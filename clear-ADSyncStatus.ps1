@@ -3,5 +3,5 @@
 
 while ((Get-MSOLCompanyInformation).DirectorySynchronizationEnabled) {
     Set-MsolDirSyncEnabled -EnableDirSync $False -Force
-    Start-Sleep -Seconds 3600
+    Start-Sleep -Seconds 3600 # Hourly
 }
