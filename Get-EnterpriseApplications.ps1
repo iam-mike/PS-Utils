@@ -186,13 +186,16 @@ foreach ($Policy in $AllPolicies) {
 
 #region output
 
-$DelegatedPermissions = @()
-$ApplicationPermissions = @()
-$ApplicationUsers = @()
+$DelegatedPermissions = @{}
+$ApplicationPermissions = @{}
+$ApplicationUsers = @{}
 foreach ($ServicePrincipal in $ServicePrincipals.ObjectId) {
-    $DelegatedPermissions = Get-AzureADApplicationDelegatedPermissions -ServicePrincipalId $ServicePrincipal
-    $ApplicationPermissions = Get-AzureADApplicationPermission -ServicePrincipalId $ServicePrincipal
-    $ApplicationUsers = Get-AzureADApplicationUsers -ServicePrincipalId $ServicePrincipal
+    $DelegatedPermission = Get-AzureADApplicationDelegatedPermissions -ServicePrincipalId $ServicePrincipal
+    $DelegatedPermissions.Add($ServicePrincipal, $DelegatedPermission)
+    $ApplicationPermission = Get-AzureADApplicationPermission -ServicePrincipalId $ServicePrincipal
+    $ApplicationPermissions.Add($ServicePrincipal, $ApplicationPermission)
+    $ApplicationUser = Get-AzureADApplicationUsers -ServicePrincipalId $ServicePrincipal
+    $ApplicationUsers.Add($ServicePrincipal, $ApplicationUser)
 }
 
 
@@ -200,7 +203,7 @@ $Applications | ConvertTo-Json | ForEach-Object { [System.Text.RegularExpression
 $Applications | Out-File "$OUTPUTDIR\applications.csv"
 $ServicePrincipals | ConvertTo-Json | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File "$OUTPUTDIR\service-principals.json" -Encoding utf8
 $DelegatedPermissions | ConvertTo-Json | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File "$OUTPUTDIR\delegated-permissions.json" -Encoding utf8
-$ApplicationUsers | ConvertTo-Csv | Out-File "$OUTPUTDIR\application-users.csv" -Encoding utf8
+$ApplicationUsers | ConvertTo-Json | Out-File "$OUTPUTDIR\application-users.json" -Encoding utf8
 $ApplicationPermissions | ConvertTo-Json | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Out-File "$OUTPUTDIR\application-permissions.json" -Encoding utf8 
 
 #endregion

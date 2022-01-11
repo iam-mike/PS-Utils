@@ -19,7 +19,7 @@
 #   of the Sample Code.                                                     # 
 #                                                                           #  
 #   Author: Unkown - Please contact for acknowledgments                     #  
-#   Version 0.1         Date Last Modified: 05 November 2010                #  
+#   Version 0.1         Date Last Modified: 05 November 2020                #  
 #                                                                           #  
 #############################################################################  
 #>
@@ -98,4 +98,4 @@ trap {
     Write-Host "`nError: $($_.Exception.Message)`n" -ForegroundColor white -BackgroundColor darkred
     Exit
 }
-#----------------------
+#------------------------------------------------------------------------------------------------------

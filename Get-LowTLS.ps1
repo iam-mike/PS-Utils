@@ -28,7 +28,7 @@
 # 2. Elevate PowerShell session to Administrator
 # 3. Install-Module Microsoft.Graph -Scope AllUsers
 
-$tId = 'abcd01e2-fa34-5d67-efab-890c1234d56e' #tenant ID
+$tId = '5e9916d7-18bc-4b8d-8124-3450361c88bd' #tenant ID
 $agoDays = 4 #will filter the log for $agoDays from current date/time
 $startDate = (Get-Date).AddDays( - ($agoDays)).ToString('yyyy-MM-dd') #calculate start date for filter
 $pathForExport = './' #path to local filesystem for export of CSV file
